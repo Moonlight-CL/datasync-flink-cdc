@@ -18,7 +18,7 @@
         <java.version>11</java.version>
         <kda.runtime.version>1.2.0</kda.runtime.version>
         <flink.version>1.15.4</flink.version>
-        <flink-cdc.version>2.3.0</flink-cdc.version>
+        <flink-cdc.version>2.4.2</flink-cdc.version>
         <log4j.version>2.17.1</log4j.version>
         <gson.version>2.10.1</gson.version>
         <kinesis.version>1.15.2</kinesis.version>
@@ -65,10 +65,16 @@
                     <artifactId>flink-connector-aws-kinesis-streams</artifactId>
                     <version>${flink.version}</version>
                 </dependency>
+                <dependency>
+                    <groupId>com.ververica</groupId>
+                    <artifactId>flink-connector-mysql-cdc</artifactId>
+                    <version>${flink-cdc.version}</version>
+                </dependency>
             </dependencies>
 
             <properties>
-                <excludeClass>**/PgCDCMsk.java</excludeClass>
+<!--                <excludeClass>**/PgCDCMsk.java</excludeClass>-->
+                <includeClass>**/MongoCDCMsk.java</includeClass>
                 <mainClass>com.aws.ana.MongoCDCMsk</mainClass>
                 <jarName>mongo-msk-cdc</jarName>
             </properties>
@@ -95,7 +101,8 @@
             </dependencies>
 
             <properties>
-                <excludeClass>**/PgCDCMsk.java</excludeClass>
+<!--                <excludeClass>**/PgCDCMsk.java</excludeClass>-->
+                <includeClass>**/MongoCDCMsk.java</includeClass>
                 <mainClass>com.aws.ana.MongoCDCMsk</mainClass>
                 <jarName>mongo-msk-cdc</jarName>
             </properties>
@@ -118,9 +125,33 @@
             </dependencies>
 
             <properties>
-                <excludeClass>**/MongoCDCMsk.java</excludeClass>
+<!--                <excludeClass>**/MongoCDCMsk.java</excludeClass>-->
+                <includeClass>**/PgCDCMsk.java</includeClass>
                 <mainClass>com.aws.ana.PgCDCMsk</mainClass>
                 <jarName>pg-msk-cdc</jarName>
+            </properties>
+
+        </profile>
+
+        <profile>
+            <id>mysql2Msk</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.ververica</groupId>
+                    <artifactId>flink-connector-mysql-cdc</artifactId>
+                    <version>${flink-cdc.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.flink</groupId>
+                    <artifactId>flink-connector-kafka</artifactId>
+                    <version>${flink.version}</version>
+                </dependency>
+            </dependencies>
+
+            <properties>
+                <includeClass>**/MySQLCDCMsk.java</includeClass>
+                <mainClass>com.aws.ana.MySQLCDCMsk</mainClass>
+                <jarName>mysql-msk-cdc</jarName>
             </properties>
 
         </profile>
@@ -168,9 +199,14 @@
                     <release>11</release>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
-                    <excludes>
-                        <exclude>${excludeClass}</exclude>
-                    </excludes>
+                    <includes>
+                        <include>com/aws/ana/kafka/**.java</include>
+                        <include>com/aws/ana/model/**.java</include>
+                        <include>${includeClass}</include>
+                    </includes>
+<!--                    <excludes>-->
+<!--                        <exclude>${excludeClass}</exclude>-->
+<!--                    </excludes>-->
                 </configuration>
             </plugin>
             <!-- We use the maven-shade plugin to create a fat jar that contains all necessary dependencies. -->

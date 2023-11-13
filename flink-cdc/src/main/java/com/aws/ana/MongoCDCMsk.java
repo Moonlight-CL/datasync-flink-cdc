@@ -107,7 +107,6 @@ public class MongoCDCMsk {
                     }
 
                     String partitionKey = String.format("%s.%s.%s", db, coll, pkVal);
-//            log.info("createMongoSource: db: {}, coll: {}, pkVal: {}, partitionKey: {}, line: {}", db, coll, pkVal, partitionKey, line);
                     return CDCKafkaModel.of(db, coll, partitionKey, line);
                 });
 
