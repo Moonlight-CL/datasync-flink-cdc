@@ -2,7 +2,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.example</groupId>
+        <groupId>com.aws.ana</groupId>
         <artifactId>aws-bd</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
@@ -17,11 +17,14 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>11</java.version>
         <kda.runtime.version>1.2.0</kda.runtime.version>
-        <flink.version>1.15.4</flink.version>
-        <flink-cdc.version>2.4.2</flink-cdc.version>
-        <log4j.version>2.17.1</log4j.version>
-        <gson.version>2.10.1</gson.version>
+        <flink.version>1.19.1</flink.version>
+        <flink-kafka.version>3.3.0-1.19</flink-kafka.version>
+        <flink-kinesis.version>5.0.0-1.19</flink-kinesis.version>
+        <flink-cdc.version>3.3.0</flink-cdc.version>
+        <log4j.version>2.24.3</log4j.version>
+        <gson.version>2.12.1</gson.version>
         <kinesis.version>1.15.2</kinesis.version>
+        <oracle.version>19.3.0.0</oracle.version>
 <!--        <excludeClass>**/PgCDCMsk.java</excludeClass>-->
 <!--        <mainClass>com.aws.ana.MongoCDCMsk</mainClass>-->
     </properties>
@@ -31,7 +34,7 @@
             <dependency>
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-java-sdk-bom</artifactId>
-                <version>1.12.479</version>
+                <version>1.12.780</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -46,29 +49,44 @@
             </activation>
             <dependencies>
                 <dependency>
-                    <groupId>com.ververica</groupId>
+                    <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-postgres-cdc</artifactId>
                     <version>${flink-cdc.version}</version>
                 </dependency>
                 <dependency>
-                    <groupId>com.ververica</groupId>
+                    <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-mongodb-cdc</artifactId>
                     <version>${flink-cdc.version}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-kafka</artifactId>
-                    <version>${flink.version}</version>
+                    <version>${flink-kafka.version}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-aws-kinesis-streams</artifactId>
-                    <version>${flink.version}</version>
+                    <version>${flink-kinesis.version}</version>
                 </dependency>
                 <dependency>
-                    <groupId>com.ververica</groupId>
+                    <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-mysql-cdc</artifactId>
                     <version>${flink-cdc.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.flink</groupId>
+                    <artifactId>flink-connector-oracle-cdc</artifactId>
+                    <version>${flink-cdc.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>com.oracle.ojdbc</groupId>
+                    <artifactId>ojdbc8</artifactId>
+                    <version>${oracle.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>com.oracle.database.xml</groupId>
+                    <artifactId>xdb</artifactId>
+                    <version>${oracle.version}</version>
                 </dependency>
             </dependencies>
 
@@ -84,19 +102,19 @@
             <id>docDB2MskKds</id>
             <dependencies>
                 <dependency>
-                    <groupId>com.ververica</groupId>
+                    <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-mongodb-cdc</artifactId>
                     <version>${flink-cdc.version}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-kafka</artifactId>
-                    <version>${flink.version}</version>
+                    <version>${flink-kafka.version}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-aws-kinesis-streams</artifactId>
-                    <version>${flink.version}</version>
+                    <version>${flink-kinesis.version}</version>
                 </dependency>
             </dependencies>
 
@@ -113,14 +131,14 @@
             <id>pg2Msk</id>
             <dependencies>
                 <dependency>
-                    <groupId>com.ververica</groupId>
+                    <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-postgres-cdc</artifactId>
                     <version>${flink-cdc.version}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-kafka</artifactId>
-                    <version>${flink.version}</version>
+                    <version>${flink-kafka.version}</version>
                 </dependency>
             </dependencies>
 
@@ -137,14 +155,14 @@
             <id>mysql2Msk</id>
             <dependencies>
                 <dependency>
-                    <groupId>com.ververica</groupId>
+                    <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-mysql-cdc</artifactId>
                     <version>${flink-cdc.version}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.apache.flink</groupId>
                     <artifactId>flink-connector-kafka</artifactId>
-                    <version>${flink.version}</version>
+                    <version>${flink-kafka.version}</version>
                 </dependency>
             </dependencies>
 
@@ -155,14 +173,54 @@
             </properties>
 
         </profile>
+
+        <profile>
+            <id>oracle2Msk</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.flink</groupId>
+                    <artifactId>flink-connector-oracle-cdc</artifactId>
+                    <version>${flink-cdc.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>com.oracle.ojdbc</groupId>
+                    <artifactId>ojdbc8</artifactId>
+                    <version>${oracle.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>com.oracle.database.xml</groupId>
+                    <artifactId>xdb</artifactId>
+                    <version>${oracle.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.flink</groupId>
+                    <artifactId>flink-connector-kafka</artifactId>
+                    <version>${flink-kafka.version}</version>
+                </dependency>
+            </dependencies>
+
+            <properties>
+                <includeClass>**/OracleCDCMsk.java</includeClass>
+                <mainClass>com.aws.ana.OracleCDCMsk</mainClass>
+                <jarName>oracle-msk-cdc</jarName>
+            </properties>
+
+        </profile>
     </profiles>
 
 
     <dependencies>
         <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-base</artifactId>
+            <version>${flink.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-kinesisanalytics-runtime</artifactId>
             <version>${kda.runtime.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
@@ -194,7 +252,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.13.0</version>
                 <configuration>
                     <release>11</release>
                     <source>${java.version}</source>
@@ -214,7 +272,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.4.1</version>
+                <version>3.6.0</version>
                 <executions>
                     <!-- Run shade goal on package phase -->
                     <execution>

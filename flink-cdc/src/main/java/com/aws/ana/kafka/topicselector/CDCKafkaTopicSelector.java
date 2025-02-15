@@ -5,9 +5,9 @@ import org.apache.flink.connector.kafka.sink.TopicSelector;
 
 public class CDCKafkaTopicSelector implements TopicSelector<CDCKafkaModel> {
 
-    private String topicPrefix;
+    private final String topicPrefix;
     public CDCKafkaTopicSelector(String topicPrefix) {
-        if (topicPrefix == null || topicPrefix.equals("")) {
+        if (topicPrefix == null || topicPrefix.isEmpty()) {
             this.topicPrefix = "cdc-";
         } else {
             this.topicPrefix = topicPrefix;

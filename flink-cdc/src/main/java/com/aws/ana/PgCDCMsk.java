@@ -8,14 +8,16 @@ import com.aws.ana.kafka.topicselector.CDCKafkaTopicSelector;
 import com.aws.ana.model.CDCKafkaModel;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
-import com.ververica.cdc.connectors.postgres.PostgreSQLSource;
-import com.ververica.cdc.debezium.DebeziumSourceFunction;
-import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.cdc.connectors.postgres.PostgreSQLSource;
+import org.apache.flink.cdc.debezium.DebeziumSourceFunction;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.cdc.debezium.JsonDebeziumDeserializationSchema;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,7 +66,7 @@ public class PgCDCMsk {
         if (!perDBTopic) {
             String topic = properties.getProperty("topic");
             return KafkaSink.<CDCKafkaModel>builder()
-                    .setDeliverGuarantee(dg)
+                    .setDeliveryGuarantee(dg)
                     .setBootstrapServers(kafkaBrokers)
                     .setKafkaProducerConfig(producerProp)
                     .setRecordSerializer(KafkaRecordSerializationSchema
@@ -78,7 +80,7 @@ public class PgCDCMsk {
         } else {
             String topicPrefix = properties.getProperty(perDBTopicKeyName);
             return KafkaSink.<CDCKafkaModel>builder()
-                    .setDeliverGuarantee(dg)
+                    .setDeliveryGuarantee(dg)
                     .setBootstrapServers(kafkaBrokers)
                     .setRecordSerializer(KafkaRecordSerializationSchema.builder()
                             .setTopicSelector(new CDCKafkaTopicSelector(topicPrefix))
@@ -94,7 +96,7 @@ public class PgCDCMsk {
         log.info("createPgSourceStream srcProp: {}", config.toString());
 
         String host = config.getProperty("host");
-        int port = Integer.valueOf(config.getProperty("port"));
+        int port = Integer.parseInt(config.getProperty("port"));
         String db = config.getProperty("db");
         String schemas = config.getProperty("schemas");
         String tables = config.getProperty("tables");
@@ -103,7 +105,7 @@ public class PgCDCMsk {
         String pluginName = "pgoutput";
 
         //Incremental Snapshot Reading is Experimental, we use source function builder
-        DebeziumSourceFunction<String> source = PostgreSQLSource.<String>builder()
+        SourceFunction<String> source = PostgreSQLSource.<String>builder()
                 .hostname(host)
                 .port(port)
                 .database(db)
@@ -117,6 +119,7 @@ public class PgCDCMsk {
 
         DataStream<CDCKafkaModel> ds = env
                 .addSource(source)
+                .setParallelism(1)
                 .rebalance()
                 .map(line -> {
                     JsonElement rootEle = JsonParser.parseString(line);

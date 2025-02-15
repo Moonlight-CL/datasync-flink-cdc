@@ -9,9 +9,9 @@ import com.aws.ana.model.CDCKafkaModel;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.cdc.connectors.mysql.table.StartupOptions;
+import org.apache.flink.cdc.connectors.base.options.StartupOptions;
+import org.apache.flink.cdc.connectors.oracle.source.OracleSourceBuilder;
 import org.apache.flink.cdc.debezium.JsonDebeziumDeserializationSchema;
-import org.apache.flink.cdc.connectors.mysql.source.MySqlSource;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
@@ -23,29 +23,28 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.Properties;
 
-public class MySQLCDCMsk {
+public class OracleCDCMsk {
 
-    private static String GROUP_NAME_MYSQL_CDC = "MySQLSrcCDC";
+    private static String GROUP_NAME_ORACLE_CDC = "OracleSrcCDC";
     private static String GROUP_NAME_MSK_CDC = "MSKTargetCDC";
 
-    private static String PK_NAME = "id";
+    private static String PK_NAME = "ID";
 
-    private static Logger log = LoggerFactory.getLogger(MySQLCDCMsk.class);
+    private static Logger log = LoggerFactory.getLogger(OracleCDCMsk.class);
 
     public static void main(String[] args) throws Exception {
         Map<String, Properties> appProperties = KinesisAnalyticsRuntime.getApplicationProperties();
-        Properties srcProp = appProperties.get(GROUP_NAME_MYSQL_CDC);
+        Properties srcProp = appProperties.get(GROUP_NAME_ORACLE_CDC);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStream<CDCKafkaModel> mySQLSource = createMySQLSourceStream(env, srcProp);
+        DataStream<CDCKafkaModel> mySQLSource = createOracleSourceStream(env, srcProp);
 
         Properties sinkProp = appProperties.get(GROUP_NAME_MSK_CDC);
         mySQLSource.sinkTo(createKafkaSink(sinkProp));
-        log.info("MySQLCDC2MSK: begin to execute job");
+        log.info("OracleCDC2MSK: begin to execute job");
 
-        env.execute("MySQL Full Load & CDC MSK");
+        env.execute("Oracle Full Load & CDC MSK");
     }
-
 
     private static KafkaSink<CDCKafkaModel> createKafkaSink(Properties properties) {
 
@@ -93,8 +92,11 @@ public class MySQLCDCMsk {
         }
     }
 
-    private static DataStream<CDCKafkaModel> createMySQLSourceStream(StreamExecutionEnvironment env, Properties config) {
-        log.info("createMySQLSourceStream srcProp: {}", config.toString());
+    private static DataStream<CDCKafkaModel> createOracleSourceStream(StreamExecutionEnvironment env, Properties config) {
+        log.info("createOracleSourceStream srcProp: {}", config.toString());
+
+        Properties debeziumProperties = new Properties();
+        debeziumProperties.setProperty("log.mining.strategy", "online_catalog");
 
         String host = config.getProperty("host");
         int port = Integer.parseInt(config.getProperty("port"));
@@ -103,10 +105,13 @@ public class MySQLCDCMsk {
         String tables = config.getProperty("tables");
         String dbUser = config.getProperty("dbUser");
         String dbPwd = config.getProperty("dbPwd");
-        String serverId = config.getProperty("serverId");
-        String tz = config.getProperty("timeZone", "Asia/Shanghai");
+        String pdb = config.getProperty("pdb");
         String startupMode = config.getProperty("startupMode", "initial");
-        boolean stringifyData = Boolean.parseBoolean(config.getProperty("stringifyData", "true"));
+        boolean stringifyData = Boolean.parseBoolean(config.getProperty("stringifyData", "false"));
+
+        if (pdb != null && !pdb.isEmpty()) {
+            debeziumProperties.setProperty("database.pdb.name", pdb);
+        }
 
         StartupOptions supOpt = null;
 
@@ -114,35 +119,32 @@ public class MySQLCDCMsk {
             case "initial":
                 supOpt = StartupOptions.initial();
                 break;
-            case "earliest-offset":
-                supOpt = StartupOptions.earliest();
-                break;
             case "latest-offset":
                 supOpt = StartupOptions.latest();
                 break;
-            case "snapshot":
-                supOpt = StartupOptions.snapshot();
-                break;
         }
 
-        //Incremental Snapshot Reading is Experimental, we use source function builder
-        MySqlSource<String> source = MySqlSource.<String>builder()
-                .hostname(host)
-                .port(port)
-                .databaseList(db)
-                .tableList(tables)
-                .username(dbUser)
-                .password(dbPwd)
-                .serverTimeZone(tz)
-                .startupOptions(supOpt)
-                .deserializer(new JsonDebeziumDeserializationSchema(false))
-                .serverId(serverId)
-                .build();
+        OracleSourceBuilder.OracleIncrementalSource<String> source =
+                new OracleSourceBuilder<String>()
+                        .hostname(host)
+                        .port(port)
+                        .databaseList(db)
+                        .schemaList(schemas)
+                        .tableList(tables)
+                        .username(dbUser)
+                        .password(dbPwd)
+                        .deserializer(new JsonDebeziumDeserializationSchema())
+                        .includeSchemaChanges(true) // output the schema changes as well
+                        .startupOptions(supOpt)
+                        .debeziumProperties(debeziumProperties)
+                        .splitSize(2)
+                        .build();
 
         DataStream<CDCKafkaModel> ds = env
-                .fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL Source")
+                .fromSource(source, WatermarkStrategy.noWatermarks(), "Oracle Source")
                 .rebalance()
                 .map(line -> {
+                    log.info("oracle cdc line: {}", line);
                     JsonElement rootEle = JsonParser.parseString(line);
                     JsonElement srcEle = rootEle.getAsJsonObject().get("source");
                     String dbName = srcEle.getAsJsonObject().get("db").getAsString();
@@ -174,4 +176,5 @@ public class MySQLCDCMsk {
 
         return ds;
     }
+
 }

@@ -9,9 +9,8 @@ import com.aws.ana.model.CDCKafkaModel;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.ververica.cdc.connectors.mongodb.MongoDBSource;
-import com.ververica.cdc.debezium.DebeziumSourceFunction;
-import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
+import org.apache.flink.cdc.connectors.mongodb.MongoDBSource;
+import org.apache.flink.cdc.debezium.JsonDebeziumDeserializationSchema;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
@@ -69,7 +68,7 @@ public class MongoCDCMsk {
         String databases = prop.getProperty("databases");
         String collections = prop.getProperty("collections");
 
-        Boolean copyExisting = Boolean.valueOf(prop.getProperty("copyExisting", "true"));
+        boolean copyExisting = Boolean.parseBoolean(prop.getProperty("copyExisting", "true"));
 
         MongoDBSource.Builder<String> mongoSrcBuilder = MongoDBSource.<String>builder()
                 .hosts(host)
